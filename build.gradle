@@ -16,6 +16,13 @@ repositories {
         name = "JourneyMap (Public)"
         url = "https://jm.gserv.me/repository/maven-public/"
     }
+	maven {
+		name = "Modrinth"
+		url = "https://api.modrinth.com/maven"
+		content {
+			includeGroup "maven.modrinth"
+		}
+	}
 }
 
 dependencies {
@@ -31,6 +38,11 @@ dependencies {
 
     modApi group: 'info.journeymap', name: 'journeymap-api', version: project.journeymap_api_version, changing: true
     modRuntimeOnly "curse.maven:journeymap-${project.jm_project_id}:${project.jm_file_id}"
+
+	modImplementation "maven.modrinth:notenoughcrashes:4.1.6+1.19-fabric"
+	modImplementation "maven.modrinth:lazydfu:0.1.3"
+	modImplementation "maven.modrinth:lithium:mc1.19-0.8.0"
+	modImplementation "maven.modrinth:starlight:1.1.1+1.19"
 }
 
 loom {

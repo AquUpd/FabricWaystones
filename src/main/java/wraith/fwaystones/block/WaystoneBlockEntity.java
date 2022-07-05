@@ -1,10 +1,12 @@
 package wraith.fwaystones.block;
 
+import java.util.Comparator;
 import net.fabricmc.fabric.api.dimension.v1.FabricDimensions;
 import net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerFactory;
 import net.fabricmc.fabric.api.util.NbtType;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.LootableContainerBlockEntity;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.Inventories;
@@ -15,7 +17,10 @@ import net.minecraft.network.PacketByteBuf;
 import net.minecraft.particle.ParticleEffect;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.screen.ScreenHandler;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.dedicated.MinecraftDedicatedServer;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ChunkTicketType;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
@@ -23,17 +28,16 @@ import net.minecraft.text.Text;
 import net.minecraft.text.TextColor;
 import net.minecraft.util.Hand;
 import net.minecraft.util.collection.DefaultedList;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.*;
 import net.minecraft.world.TeleportTarget;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 import wraith.fwaystones.FabricWaystones;
+import wraith.fwaystones.access.PlayerAccess;
 import wraith.fwaystones.access.PlayerEntityMixinAccess;
 import wraith.fwaystones.access.WaystoneValue;
 import wraith.fwaystones.item.AbyssWatcherItem;
+import wraith.fwaystones.mixin.MinecraftServerAccessor;
 import wraith.fwaystones.registry.BlockEntityRegistry;
 import wraith.fwaystones.screen.WaystoneBlockScreenHandler;
 import wraith.fwaystones.util.Config;
@@ -391,6 +395,8 @@ public class WaystoneBlockEntity extends LootableContainerBlockEntity implements
         return true;
     }
 
+    public static final ChunkTicketType<Integer> WAYSTONE_PLAYER_TICKET = ChunkTicketType.create("player", Integer::compareTo, 100);
+
     private boolean doTeleport(ServerPlayerEntity player, ServerWorld world, TeleportTarget target, TeleportSources source, boolean takeCost) {
         var playerAccess = (PlayerEntityMixinAccess) player;
         var cooldown = playerAccess.getTeleportCooldown();
@@ -420,9 +426,15 @@ public class WaystoneBlockEntity extends LootableContainerBlockEntity implements
         player.world.playSound(null, oldPos, SoundEvents.ENTITY_ENDERMAN_TELEPORT,
             SoundCategory.BLOCKS, 1F, 1F);
         FabricWaystones.LOGGER.info("Teleporting...");
-        FabricDimensions.teleport(player, world, target);
-        BlockPos playerPos = player.getBlockPos();
 
+        if (player.hasVehicle()) {
+            world.getChunkManager().addTicket(WAYSTONE_PLAYER_TICKET, new ChunkPos((int) target.position.multiply(0.0625).getX(), (int) target.position.multiply(0.0625).getZ()), 2, player.getId());
+            FabricDimensions.teleport(player.getRootVehicle(), world, target);
+        } else {
+            FabricDimensions.teleport(player, world, target);
+        }
+
+        BlockPos playerPos = player.getBlockPos();
         if (!oldPos.isWithinDistance(playerPos, 6) || !player.world.getRegistryKey().equals(world.getRegistryKey())) {
             world.playSound(null, playerPos, SoundEvents.ENTITY_ENDERMAN_TELEPORT, SoundCategory.BLOCKS, 1F, 1F);
         }
